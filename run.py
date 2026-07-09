@@ -40,4 +40,4 @@ if __name__ == '__main__':
         vocab_size=10_000,
         special_tokens=["<|endoftext|>","<|endoftext|><|endoftext|>"],
     )
-    save_tokenizer(vocab, merges, "tokenizer.yaml")
+    save_tokenizer(vocab, merges, "data/tokenizer/tokenizer.yaml")

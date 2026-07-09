@@ -163,4 +163,3 @@ cython_debug/
 *.zip
 # Data and generated files
 data/
-tokenizer.yaml
