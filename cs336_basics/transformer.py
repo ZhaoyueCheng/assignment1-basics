@@ -150,6 +150,7 @@ def silu(x: Float[Tensor, " ..."]) -> Float[Tensor, " ..."]:
 
     Test:  uv run pytest -k test_silu
     """
+    # Numerically stable PyTorch version: return x * torch.sigmoid(x)
     return x / (1 + torch.exp(-x))
 
 
@@ -305,7 +306,8 @@ def scaled_dot_product_attention(
     """
     d_k = Q.shape[-1]
     qk_scores = einsum(Q, K, "... queries d_k, ... keys d_k -> ... queries keys") / math.sqrt(d_k)
-    qk_scores = torch.where(mask, qk_scores, float("-inf"))
+    if mask is not None:
+        qk_scores = torch.where(mask, qk_scores, float("-inf"))
     qk_scores = softmax(qk_scores, dim=-1)
     attention = einsum(qk_scores, V, "... queries keys, ... keys d_v -> ... queries d_v")
     return attention
@@ -382,7 +384,8 @@ class MultiHeadSelfAttention(nn.Module):
         v = rearrange(self.v_proj(x), "... seq (h d_v) -> ... h seq d_v", h=self.num_heads)
 
         if token_positions is None:
-            token_positions = torch.arange(seq)[..., None, :]
+            # Device-safe version: torch.arange(seq, device=x.device)[None, :]
+            token_positions = torch.arange(seq)[None, :]
         if self.rope is not None:
             q = self.rope(q, token_positions)
             k = self.rope(k, token_positions)
@@ -390,6 +393,8 @@ class MultiHeadSelfAttention(nn.Module):
         mask_i = torch.arange(seq)[:, None]
         mask_j = torch.arange(seq)[None, :]
         mask = mask_i >= mask_j
+        # Device-safe PyTorch version:
+        # mask = torch.tril(torch.ones(seq, seq, dtype=torch.bool, device=x.device))
         
         attention = scaled_dot_product_attention(q, k, v, mask)
         attention = rearrange(attention, "... n seq d_v -> ... seq (n d_v)")

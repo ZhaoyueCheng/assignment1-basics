@@ -66,14 +66,21 @@ def gradient_clipping(parameters: Iterable[torch.nn.Parameter], max_l2_norm: flo
 
     Test:  uv run pytest -k test_gradient_clipping
     """
-    eps = 10**(-6)
+    eps = 1e-6
     grads = [p.grad for p in parameters if p.grad is not None]
-    grads_l2_norm = torch.sqrt(torch.sum(torch.stack([torch.square(g) for g in grads])))
+    if not grads:
+        return
 
-    if grads_l2_norm > max_l2_norm:
-      for p in parameters:
-          if p.grad is None:
-              continue
-          
-          p.grad = p.grad * max_l2_norm / (grads_l2_norm + eps)
+    # Add up every gradient value squared, then take one square root at the end.
+    total_squared = sum(torch.sum(grad ** 2) for grad in grads)
+    total_norm = torch.sqrt(total_squared)
+
+    # Shorter PyTorch version:
+    # grad_norms = torch.stack([torch.norm(grad, p=2) for grad in grads])
+    # total_norm = torch.norm(grad_norms, p=2)
+
+    if total_norm > max_l2_norm:
+        scale = max_l2_norm / (total_norm + eps)
+        for grad in grads:
+            grad.mul_(scale)
           
